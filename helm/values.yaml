@@ -1,0 +1,67 @@
+image:
+  repository: specter
+  tag: latest
+  pullPolicy: Never
+
+service:
+  nodePort: 30001
+  port: 9000
+
+mcp:
+  serverUrl: "http://mcp-server.workload.svc.cluster.local:8000/mcp"
+
+database:
+  type: sqlite
+  sqlitePath: /data/specter.db
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: standard
+
+oidc:
+  enabled: false
+  issuer: ""
+  clientId: ""
+  clientSecret: ""
+  redirectUri: "http://localhost:9000/auth/callback"
+
+scanners:
+  k8s:
+    enabled: true
+  aws:
+    enabled: false
+    region: us-east-1
+    accessKeyId: ""
+    secretAccessKey: ""
+  gcp:
+    enabled: false
+    projectId: ""
+  azure:
+    enabled: false
+    subscriptionId: ""
+    tenantId: ""
+    clientId: ""
+    clientSecret: ""
+  ibm:
+    enabled: false
+    apiKey: ""
+    region: us-south
+  alibaba:
+    enabled: false
+    accessKeyId: ""
+    accessKeySecret: ""
+    regionId: cn-hangzhou
+
+observability:
+  splunk:
+    enabled: false
+    hecUrl: ""
+    hecToken: ""
+  cribl:
+    enabled: false
+    url: ""
+  grafana:
+    enabled: false
+    url: ""
+    apiKey: ""

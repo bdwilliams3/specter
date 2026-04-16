@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: specter-config
+  namespace: specter
+data:
+  MCP_SERVER_URL: {{ .Values.mcp.serverUrl | quote }}
+  DATABASE_TYPE: {{ .Values.database.type | quote }}
+  SQLITE_PATH: {{ .Values.database.sqlitePath | quote }}
+  LOG_LEVEL: "INFO"
+  SCANNER_K8S_ENABLED: {{ .Values.scanners.k8s.enabled | quote }}
+  SCANNER_AWS_ENABLED: {{ .Values.scanners.aws.enabled | quote }}
+  SCANNER_GCP_ENABLED: {{ .Values.scanners.gcp.enabled | quote }}
+  SCANNER_AZURE_ENABLED: {{ .Values.scanners.azure.enabled | quote }}
+  SCANNER_IBM_ENABLED: {{ .Values.scanners.ibm.enabled | quote }}
+  SCANNER_ALIBABA_ENABLED: {{ .Values.scanners.alibaba.enabled | quote }}
+  AWS_REGION: {{ .Values.scanners.aws.region | quote }}
+  IBM_REGION: {{ .Values.scanners.ibm.region | quote }}
+  ALIBABA_REGION_ID: {{ .Values.scanners.alibaba.regionId | quote }}
+  SPLUNK_ENABLED: {{ .Values.observability.splunk.enabled | quote }}
+  CRIBL_ENABLED: {{ .Values.observability.cribl.enabled | quote }}
+  GRAFANA_ENABLED: {{ .Values.observability.grafana.enabled | quote }}
