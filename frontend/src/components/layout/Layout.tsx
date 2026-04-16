@@ -17,12 +17,13 @@ interface Toast {
 }
 
 const PAGE_TITLES: Record<string, string> = {
-  '/':                'Dashboard',
-  '/inventory':       'AI Asset Inventory',
-  '/threats':         'Threat Events',
-  '/vulnerabilities': 'Vulnerabilities',
-  '/graph':           'Topology Map',
-  '/settings':        'Settings',
+  '/':                          'Dashboard',
+  '/inventory':                 'AI Asset Inventory',
+  '/threats':                   'Threat Events',
+  '/posture/vulnerabilities':   'Vulnerabilities',
+  '/posture/policies':          'Policies',
+  '/graph':                     'Topology Map',
+  '/settings':                  'Settings',
 }
 
 let toastId = 0

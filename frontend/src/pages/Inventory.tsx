@@ -25,18 +25,14 @@ export default function Inventory() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [assetType, setAssetType] = useState('')
-  const [provider, setProvider] = useState('')
+  const [search, setSearch]   = useState('')
   const [selected, setSelected] = useState<Asset | null>(null)
 
   const fetchAssets = useCallback(async () => {
     setIsLoading(true)
     try {
-      const params: Record<string, unknown> = { page, limit: PAGE_SIZE }
+      const params: Record<string, unknown> = { page, page_size: PAGE_SIZE }
       if (search) params.search = search
-      if (assetType) params.asset_type = assetType
-      if (provider) params.provider = provider
       const data = await getAssets(params)
       const items = Array.isArray(data) ? data : data.items ?? []
       setAssets(items)
@@ -46,7 +42,7 @@ export default function Inventory() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, assetType, provider])
+  }, [page, search])
 
   useEffect(() => { fetchAssets() }, [fetchAssets])
 
@@ -58,13 +54,15 @@ export default function Inventory() {
   }
 
   const columns: ColumnDef<Asset, unknown>[] = [
-    { accessorKey: 'name',       header: 'Name',      cell: info => <span className="text-white font-medium">{info.getValue() as string}</span> },
-    { accessorKey: 'asset_type', header: 'Type',      cell: info => <span className="text-slate-300 capitalize">{(info.getValue() as string)?.replace('_', ' ')}</span> },
-    { accessorKey: 'provider',   header: 'Provider',  cell: info => <span className="text-slate-300">{info.getValue() as string}</span> },
-    { accessorKey: 'namespace',  header: 'Namespace', cell: info => <span className="text-slate-400 font-mono text-xs">{(info.getValue() as string) ?? '—'}</span> },
+    { accessorKey: 'name',       header: 'Name',      enableSorting: true, enableColumnFilter: true,  filterFn: 'multiSelect', cell: info => <span className="text-white font-medium">{info.getValue() as string}</span> },
+    { accessorKey: 'asset_type', header: 'Type',      enableSorting: true, enableColumnFilter: true,  filterFn: 'multiSelect', cell: info => <span className="text-slate-300 capitalize">{(info.getValue() as string)?.replace(/_/g, ' ')}</span> },
+    { accessorKey: 'provider',   header: 'Provider',  enableSorting: true, enableColumnFilter: true,  filterFn: 'multiSelect', cell: info => <span className="text-slate-300">{info.getValue() as string}</span> },
+    { accessorKey: 'namespace',  header: 'Namespace', enableSorting: true, enableColumnFilter: true,  filterFn: 'multiSelect', cell: info => <span className="text-slate-400 font-mono text-xs">{(info.getValue() as string) ?? '—'}</span> },
     {
       accessorKey: 'risk_score',
       header: 'Risk Score',
+      enableSorting: true,
+      enableColumnFilter: false,
       cell: info => {
         const v = info.getValue() as number | undefined
         if (v === undefined || v === null) return <span className="text-slate-500">—</span>
@@ -75,6 +73,8 @@ export default function Inventory() {
     {
       accessorKey: 'last_seen',
       header: 'Last Seen',
+      enableSorting: true,
+      enableColumnFilter: false,
       cell: info => {
         const v = info.getValue() as string | undefined
         return <span className="text-slate-400 text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
@@ -82,7 +82,9 @@ export default function Inventory() {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: '',
+      enableSorting: false,
+      enableColumnFilter: false,
       cell: info => (
         <button
           onClick={(e) => handleDelete(info.row.original.id, e)}
@@ -97,8 +99,7 @@ export default function Inventory() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -109,29 +110,6 @@ export default function Inventory() {
             className="w-full bg-specter-surface border border-specter-border text-slate-200 rounded pl-8 pr-3 py-2 text-sm placeholder:text-slate-600 focus:outline-none focus:border-specter-accent"
           />
         </div>
-        <select
-          value={assetType}
-          onChange={e => { setAssetType(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Types</option>
-          <option value="mcp_server">MCP Server</option>
-          <option value="cloud">Cloud</option>
-          <option value="k8s">Kubernetes</option>
-          <option value="agentic">Agentic</option>
-        </select>
-        <select
-          value={provider}
-          onChange={e => { setProvider(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Providers</option>
-          <option value="aws">AWS</option>
-          <option value="gcp">GCP</option>
-          <option value="azure">Azure</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-        </select>
         <div className="ml-auto">
           <ExportMenu entity="assets" />
         </div>

@@ -25,17 +25,12 @@ export default function Threats() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [severity, setSeverity] = useState('')
-  const [category, setCategory] = useState('')
   const [selected, setSelected] = useState<Threat | null>(null)
 
   const fetchThreats = useCallback(async () => {
     setIsLoading(true)
     try {
-      const params: Record<string, unknown> = { page, limit: PAGE_SIZE }
-      if (severity) params.severity = severity
-      if (category) params.category = category
-      const data = await getThreats(params)
+      const data = await getThreats({ page, page_size: PAGE_SIZE })
       const items = Array.isArray(data) ? data : data.items ?? []
       setThreats(items)
       setTotal(Array.isArray(data) ? data.length : data.total ?? items.length)
@@ -44,7 +39,7 @@ export default function Threats() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, severity, category])
+  }, [page])
 
   useEffect(() => { fetchThreats() }, [fetchThreats])
 
@@ -52,21 +47,33 @@ export default function Threats() {
     {
       accessorKey: 'title',
       header: 'Title',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <span className="text-white font-medium">{info.getValue() as string}</span>
     },
     {
       accessorKey: 'severity',
       header: 'Severity',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <SeverityBadge severity={info.getValue() as string} />
     },
     {
       accessorKey: 'category',
       header: 'Category',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <span className="text-slate-300">{(info.getValue() as string) ?? '—'}</span>
     },
     {
       accessorKey: 'mitre_atlas',
       header: 'MITRE ATLAS',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => {
         const v = info.getValue() as string | undefined
         return v
@@ -77,6 +84,8 @@ export default function Threats() {
     {
       accessorKey: 'detected_at',
       header: 'Detected At',
+      enableSorting: true,
+      enableColumnFilter: false,
       cell: info => {
         const v = info.getValue() as string | undefined
         return <span className="text-slate-400 text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
@@ -86,36 +95,8 @@ export default function Threats() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={severity}
-          onChange={e => { setSeverity(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Severities</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-          <option value="info">Info</option>
-        </select>
-        <select
-          value={category}
-          onChange={e => { setCategory(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Categories</option>
-          <option value="prompt_injection">Prompt Injection</option>
-          <option value="data_exfiltration">Data Exfiltration</option>
-          <option value="privilege_escalation">Privilege Escalation</option>
-          <option value="lateral_movement">Lateral Movement</option>
-          <option value="supply_chain">Supply Chain</option>
-          <option value="model_manipulation">Model Manipulation</option>
-        </select>
-        <div className="ml-auto">
-          <ExportMenu entity="threats" />
-        </div>
+      <div className="flex justify-end">
+        <ExportMenu entity="threats" />
       </div>
 
       <DataTable

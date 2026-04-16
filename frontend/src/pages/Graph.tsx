@@ -70,7 +70,7 @@ function GraphInner() {
   const handleNodeClick = useCallback((node: Node<AssetNodeData>) => {
     setSelected({
       id: node.id,
-      name: node.data.name,
+      name: node.data.label,
       asset_type: node.data.asset_type,
       provider: node.data.provider,
       namespace: node.data.namespace,

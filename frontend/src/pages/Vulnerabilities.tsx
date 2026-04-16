@@ -17,26 +17,24 @@ interface Vuln {
   remediation?: string | string[]
   cve_id?: string
   asset_id?: string
+  asset_name?: string
+  cluster?: string
+  scanner_name?: string
 }
 
 const PAGE_SIZE = 20
 
 export default function Vulnerabilities() {
-  const [vulns, setVulns] = useState<Vuln[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
+  const [vulns, setVulns]       = useState<Vuln[]>([])
+  const [total, setTotal]       = useState(0)
+  const [page, setPage]         = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [severity, setSeverity] = useState('')
-  const [category, setCategory] = useState('')
   const [selected, setSelected] = useState<Vuln | null>(null)
 
   const fetchVulns = useCallback(async () => {
     setIsLoading(true)
     try {
-      const params: Record<string, unknown> = { page, limit: PAGE_SIZE }
-      if (severity) params.severity = severity
-      if (category) params.category = category
-      const data = await getVulns(params)
+      const data = await getVulns({ page, page_size: PAGE_SIZE })
       const items = Array.isArray(data) ? data : data.items ?? []
       setVulns(items)
       setTotal(Array.isArray(data) ? data.length : data.total ?? items.length)
@@ -45,7 +43,7 @@ export default function Vulnerabilities() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, severity, category])
+  }, [page])
 
   useEffect(() => { fetchVulns() }, [fetchVulns])
 
@@ -53,31 +51,56 @@ export default function Vulnerabilities() {
     {
       accessorKey: 'title',
       header: 'Title',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <span className="text-white font-medium">{info.getValue() as string}</span>
     },
     {
       accessorKey: 'severity',
       header: 'Severity',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <SeverityBadge severity={info.getValue() as string} />
     },
     {
       accessorKey: 'category',
       header: 'Category',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
       cell: info => <span className="text-slate-300">{(info.getValue() as string) ?? '—'}</span>
     },
     {
       accessorKey: 'cvss_score',
-      header: 'CVSS Score',
+      header: 'CVSS',
+      enableSorting: true,
+      enableColumnFilter: false,
       cell: info => {
         const v = info.getValue() as number | undefined
-        if (v === undefined || v === null) return <span className="text-slate-500">—</span>
+        if (v == null) return <span className="text-slate-500">—</span>
         const color = v >= 9 ? 'text-red-400' : v >= 7 ? 'text-orange-400' : v >= 4 ? 'text-yellow-400' : 'text-green-400'
         return <span className={`font-mono font-semibold ${color}`}>{v.toFixed(1)}</span>
       }
     },
     {
+      accessorKey: 'cluster',
+      header: 'Host',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
+      cell: info => {
+        const row = info.row.original
+        const cluster = row.cluster || row.scanner_name || '—'
+        return <span className="text-slate-300 font-mono text-xs">{cluster}</span>
+      }
+    },
+    {
       accessorKey: 'first_seen',
       header: 'First Seen',
+      enableSorting: true,
+      enableColumnFilter: false,
       cell: info => {
         const v = info.getValue() as string | undefined
         return <span className="text-slate-400 text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
@@ -91,36 +114,8 @@ export default function Vulnerabilities() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={severity}
-          onChange={e => { setSeverity(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Severities</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-          <option value="info">Info</option>
-        </select>
-        <select
-          value={category}
-          onChange={e => { setCategory(e.target.value); setPage(1) }}
-          className="bg-specter-surface border border-specter-border text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-specter-accent"
-        >
-          <option value="">All Categories</option>
-          <option value="container">Container</option>
-          <option value="dependency">Dependency</option>
-          <option value="configuration">Configuration</option>
-          <option value="secret">Secret</option>
-          <option value="code">Code</option>
-          <option value="network">Network</option>
-        </select>
-        <div className="ml-auto">
-          <ExportMenu entity="vulnerabilities" />
-        </div>
+      <div className="flex justify-end">
+        <ExportMenu entity="vulnerabilities" />
       </div>
 
       <DataTable
@@ -131,7 +126,6 @@ export default function Vulnerabilities() {
         pagination={{ page, pageSize: PAGE_SIZE, total, onPageChange: setPage }}
       />
 
-      {/* Slide-over drawer */}
       {selected && (
         <div className="fixed inset-0 z-40 flex justify-end">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelected(null)} />
@@ -158,8 +152,9 @@ export default function Vulnerabilities() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: 'Category',   value: selected.category ?? '—' },
-                  { label: 'CVSS Score', value: selected.cvss_score !== undefined ? selected.cvss_score.toFixed(1) : '—' },
-                  { label: 'Asset ID',   value: selected.asset_id ?? '—' },
+                  { label: 'CVSS Score', value: selected.cvss_score != null ? selected.cvss_score.toFixed(1) : '—' },
+                  { label: 'Host',       value: selected.cluster ?? selected.scanner_name ?? '—' },
+                  { label: 'Asset',      value: selected.asset_name ?? selected.asset_id ?? '—' },
                   { label: 'First Seen', value: selected.first_seen ? new Date(selected.first_seen).toLocaleString() : '—' },
                 ].map(({ label, value }) => (
                   <div key={label}>

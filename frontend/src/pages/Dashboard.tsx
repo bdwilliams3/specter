@@ -3,17 +3,18 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
-import { Package, AlertTriangle, ShieldAlert, Clock } from 'lucide-react'
+import { Package, AlertTriangle, Clock } from 'lucide-react'
 import { getMetrics } from '../api/metrics'
 import { getThreats } from '../api/threats'
 import SeverityBadge from '../components/shared/SeverityBadge'
 
 interface Metrics {
   total_assets: number
-  active_threats: number
-  open_vulnerabilities: number
-  last_scan?: string
+  total_threats: number
+  total_vulnerabilities: number
+  last_scan?: { id: string; scanner: string; status: string; started_at: string } | null
   threats_by_severity?: Record<string, number>
+  vulnerabilities_by_severity?: Record<string, number>
   assets_by_provider?: Record<string, number>
 }
 
@@ -94,8 +95,10 @@ export default function Dashboard() {
     return () => { clearTimeout(reconnectTimer); wsRef.current?.close() }
   }, [])
 
-  const severityChartData = metrics?.threats_by_severity
-    ? Object.entries(metrics.threats_by_severity).map(([k, v]) => ({ name: k, value: v, fill: SEVERITY_COLORS[k] ?? '#6366f1' }))
+  const vulnChartData = metrics?.vulnerabilities_by_severity
+    ? Object.entries(metrics.vulnerabilities_by_severity)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => ({ name: k, value: v, fill: SEVERITY_COLORS[k] ?? '#6366f1' }))
     : []
 
   const providerChartData = metrics?.assets_by_provider
@@ -105,31 +108,34 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Assets"         value={metrics?.total_assets ?? '—'}         icon={Package}    color="bg-indigo-500/20 text-indigo-400" />
-        <StatCard label="Active Threats"       value={metrics?.active_threats ?? '—'}       icon={AlertTriangle} color="bg-orange-500/20 text-orange-400" />
-        <StatCard label="Open Vulnerabilities" value={metrics?.open_vulnerabilities ?? '—'} icon={ShieldAlert} color="bg-red-500/20 text-red-400" />
-        <StatCard label="Last Scan"            value={formatScan(metrics?.last_scan)}       icon={Clock}      color="bg-green-500/20 text-green-400" />
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard label="Total Assets"   value={metrics?.total_assets ?? '—'}  icon={Package}       color="bg-indigo-500/20 text-indigo-400" />
+        <StatCard label="Active Threats" value={metrics?.total_threats ?? '—'} icon={AlertTriangle} color="bg-orange-500/20 text-orange-400" />
+        <StatCard label="Last Scan"      value={formatScan(metrics?.last_scan?.started_at)} icon={Clock} color="bg-green-500/20 text-green-400" />
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-specter-surface border border-specter-border rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Threats by Severity</h2>
-          {severityChartData.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-slate-500 text-sm">No data</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Vulnerabilities by Severity — replaces stat card */}
+        <div className="bg-specter-surface border border-specter-border rounded-lg p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Open Vulnerabilities</h2>
+            <span className="text-2xl font-bold text-white">{metrics?.total_vulnerabilities ?? '—'}</span>
+          </div>
+          {vulnChartData.length === 0 ? (
+            <div className="flex items-center justify-center h-36 text-slate-500 text-sm">No vulnerabilities</div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={severityChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={vulnChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 6 }}
                   labelStyle={{ color: '#e2e8f0' }}
                   itemStyle={{ color: '#94a3b8' }}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {severityChartData.map((entry, i) => (
+                  {vulnChartData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -141,19 +147,11 @@ export default function Dashboard() {
         <div className="bg-specter-surface border border-specter-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Assets by Provider</h2>
           {providerChartData.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-slate-500 text-sm">No data</div>
+            <div className="flex items-center justify-center h-36 text-slate-500 text-sm">No data</div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={150}>
               <PieChart>
-                <Pie
-                  data={providerChartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={75}
-                  innerRadius={40}
-                >
+                <Pie data={providerChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} innerRadius={28}>
                   {providerChartData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
