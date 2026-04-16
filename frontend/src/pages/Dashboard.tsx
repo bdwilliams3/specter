@@ -19,8 +19,8 @@ interface Metrics {
 }
 
 interface Threat {
-  id: string
-  title: string
+  event_id: string
+  threat_name: string
   severity: string
   category?: string
   detected_at?: string
@@ -194,8 +194,8 @@ export default function Dashboard() {
                   <td colSpan={4} className="py-8 text-center text-slate-500">No recent threats</td>
                 </tr>
               ) : threats.map((t) => (
-                <tr key={t.id} className="border-b border-specter-border/40 hover:bg-specter-border/20 transition-colors">
-                  <td className="py-2.5 pr-4 text-slate-200 font-medium">{t.title}</td>
+                <tr key={t.event_id} className="border-b border-specter-border/40 hover:bg-specter-border/20 transition-colors">
+                  <td className="py-2.5 pr-4 text-slate-200 font-medium">{t.threat_name}</td>
                   <td className="py-2.5 pr-4"><SeverityBadge severity={t.severity} /></td>
                   <td className="py-2.5 pr-4 text-slate-400">{t.category ?? '—'}</td>
                   <td className="py-2.5 text-slate-500 text-xs">

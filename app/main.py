@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -10,7 +11,8 @@ from app.database import init_db
 # Import models so Base.metadata is populated
 import app.models  # noqa: F401
 
-from app.routers import auth, assets, threats, vulnerabilities, graph, scans, reports, metrics, integrations, ws
+from app.routers import auth, assets, threats, vulnerabilities, graph, scans, reports, metrics, integrations, ws, collector
+from app.services.threat_retention import retention_loop
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -21,7 +23,9 @@ async def lifespan(app: FastAPI):
     logger.info("Specter starting up — initialising database...")
     await init_db()
     logger.info("Database ready.")
+    purge_task = asyncio.create_task(retention_loop())
     yield
+    purge_task.cancel()
     logger.info("Specter shutting down.")
 
 
@@ -53,6 +57,7 @@ app.include_router(reports.router)
 app.include_router(metrics.router)
 app.include_router(integrations.router)
 app.include_router(ws.router)
+app.include_router(collector.router)
 
 
 @app.get("/healthz")

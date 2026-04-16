@@ -9,7 +9,7 @@ from app.models.threat import ThreatEvent
 from app.models.vulnerability import Vulnerability
 from app.models.connection import AssetConnection
 from app.scanners import get_scanner
-from app.detectors import threat_detector, vuln_detector
+from app.detectors import vuln_detector
 from app.services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,6 @@ async def run_scan(scanner_name: str, target: str, db: AsyncSession) -> ScanRun:
 
     try:
         result = await scanner.scan(target, {})
-        result = threat_detector.analyze(result, {})
         result = vuln_detector.analyze(result, {})
 
         now = datetime.utcnow()

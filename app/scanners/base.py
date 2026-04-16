@@ -12,6 +12,7 @@ class ScanResult:
     threats: list[dict] = field(default_factory=list)
     vulnerabilities: list[dict] = field(default_factory=list)
     connections: list[dict] = field(default_factory=list)
+    error: str | None = None
 
 
 class BaseScanner(ABC):

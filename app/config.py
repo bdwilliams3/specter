@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # MCP Server
     mcp_server_url: str = "http://mcp-server.workload.svc.cluster.local:8000/mcp"
 
+    # Threat retention — Specter is a detection broker, not a system of record.
+    # Threats older than this are purged; customers ship to their SIEM for long-term storage.
+    threat_retention_hours: int = 72
+    threat_purge_interval_minutes: int = 15
+
     # OIDC / SSO
     oidc_issuer: str = ""
     oidc_client_id: str = ""

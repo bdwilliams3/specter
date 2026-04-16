@@ -7,13 +7,19 @@ import SeverityBadge from '../components/shared/SeverityBadge'
 import ExportMenu from '../components/shared/ExportMenu'
 
 interface Threat {
-  id: string
-  title: string
+  event_id: string
+  threat_name: string
   severity: string
   category?: string
   mitre_atlas?: string
   detected_at?: string
   description?: string
+  principal_role?: string
+  principal_subject?: string
+  method?: string
+  resource?: string
+  namespace?: string
+  source_ips?: string[]
   raw_evidence?: unknown
   asset_id?: string
 }
@@ -43,14 +49,50 @@ export default function Threats() {
 
   useEffect(() => { fetchThreats() }, [fetchThreats])
 
+  const dash = <span className="text-slate-500">—</span>
+
   const columns: ColumnDef<Threat, unknown>[] = [
     {
-      accessorKey: 'title',
-      header: 'Title',
+      accessorKey: 'threat_name',
+      header: 'Threat Name',
       enableSorting: true,
       enableColumnFilter: true,
       filterFn: 'multiSelect',
-      cell: info => <span className="text-white font-medium">{info.getValue() as string}</span>
+      cell: info => <span className="text-white font-medium">{(info.getValue() as string) || dash}</span>
+    },
+    {
+      accessorKey: 'principal_role',
+      header: 'Principal',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
+      cell: info => {
+        const v = info.getValue() as string | undefined
+        return v ? <span className="text-slate-200 font-mono text-xs">{v}</span> : dash
+      }
+    },
+    {
+      accessorKey: 'principal_subject',
+      header: 'Subject',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
+      cell: info => {
+        const v = info.getValue() as string | undefined
+        return v ? <span className="text-slate-300 font-mono text-xs">{v}</span> : dash
+      }
+    },
+    {
+      id: 'host',
+      header: 'Host',
+      accessorFn: (row: Threat) => row.source_ips?.[0] ?? '',
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: 'multiSelect',
+      cell: info => {
+        const v = info.getValue() as string | undefined
+        return v ? <span className="text-slate-300 font-mono text-xs">{v}</span> : dash
+      }
     },
     {
       accessorKey: 'severity',
@@ -70,7 +112,7 @@ export default function Threats() {
     },
     {
       accessorKey: 'mitre_atlas',
-      header: 'MITRE ATLAS',
+      header: 'Mitre Mapping',
       enableSorting: true,
       enableColumnFilter: true,
       filterFn: 'multiSelect',
@@ -78,12 +120,12 @@ export default function Threats() {
         const v = info.getValue() as string | undefined
         return v
           ? <span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">{v}</span>
-          : <span className="text-slate-500">—</span>
+          : dash
       }
     },
     {
       accessorKey: 'detected_at',
-      header: 'Detected At',
+      header: 'Detection Time',
       enableSorting: true,
       enableColumnFilter: false,
       cell: info => {
@@ -123,19 +165,25 @@ export default function Threats() {
             </div>
             <div className="flex-1 px-6 py-5 flex flex-col gap-5">
               <div>
-                <h3 className="text-xl font-bold text-white">{selected.title}</h3>
+                <h3 className="text-xl font-bold text-white">{selected.threat_name || 'Untitled threat'}</h3>
                 <p className="text-slate-400 text-sm mt-2 leading-relaxed">{selected.description ?? 'No description available.'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: 'Category',    value: selected.category ?? '—' },
-                  { label: 'MITRE ATLAS', value: selected.mitre_atlas ?? '—' },
-                  { label: 'Asset ID',    value: selected.asset_id ?? '—' },
-                  { label: 'Detected At', value: selected.detected_at ? new Date(selected.detected_at).toLocaleString() : '—' },
+                  { label: 'Principal',     value: selected.principal_role ?? '—' },
+                  { label: 'Subject',       value: selected.principal_subject ?? '—' },
+                  { label: 'Method',        value: selected.method ?? '—' },
+                  { label: 'Resource',      value: selected.resource ?? '—' },
+                  { label: 'Namespace',     value: selected.namespace ?? '—' },
+                  { label: 'Host',          value: selected.source_ips?.join(', ') ?? '—' },
+                  { label: 'Category',      value: selected.category ?? '—' },
+                  { label: 'MITRE ATLAS',   value: selected.mitre_atlas ?? '—' },
+                  { label: 'Asset ID',      value: selected.asset_id ?? '—' },
+                  { label: 'Detection Time', value: selected.detected_at ? new Date(selected.detected_at).toLocaleString() : '—' },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-sm text-slate-200 font-medium font-mono">{value}</p>
+                    <p className="text-sm text-slate-200 font-medium font-mono break-all">{value}</p>
                   </div>
                 ))}
               </div>

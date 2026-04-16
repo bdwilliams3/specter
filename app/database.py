@@ -1,6 +1,7 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from app.config import settings
 
 
@@ -31,6 +32,22 @@ async def get_db():
         yield session
 
 
+_NEW_THREAT_COLUMNS = [
+    ("threat_name",       "VARCHAR DEFAULT ''"),
+    ("principal_role",    "VARCHAR"),
+    ("principal_subject", "VARCHAR"),
+    ("method",            "VARCHAR"),
+    ("resource",          "VARCHAR"),
+    ("namespace",         "VARCHAR"),
+    ("source_ips",        "JSON"),
+]
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for col, typedef in _NEW_THREAT_COLUMNS:
+            try:
+                await conn.execute(text(f"ALTER TABLE threat_events ADD COLUMN {col} {typedef}"))
+            except Exception:
+                pass  # column already exists
