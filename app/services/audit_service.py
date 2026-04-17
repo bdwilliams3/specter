@@ -11,6 +11,7 @@ from app.models.asset import AIAsset
 from app.models.threat import ThreatEvent, ThreatSeverity, ThreatCategory
 from app.detectors.threat_rules import evaluate
 from app.services.ws_manager import ws_manager as manager
+from app.services.trusted_installers import trusted_installers
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,44 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
     if not events:
         return 0
 
-    # Load AI asset names for enrichment (used to bump severity)
-    result = await db.execute(select(AIAsset.name, AIAsset.id))
+    # Build the AI scope from inventory — the source of truth for rule gating.
+    # Every rule in threat_rules.py checks whether the event's target falls
+    # within this scope. If inventory is empty, no audit-based rule fires.
+    result = await db.execute(
+        select(AIAsset.name, AIAsset.id, AIAsset.namespace, AIAsset.metadata_, AIAsset.asset_type)
+    )
     rows = result.all()
-    ai_asset_names = {r.name for r in rows}
-    name_to_id = {r.name: r.id for r in rows}
+    ai_pod_names: set[str] = set()
+    ai_namespaces: set[str] = set()
+    ai_service_accounts: set[str] = set()
+    ai_deployment_names: set[str] = set()
+    ai_service_names: set[str] = set()
+    name_to_id: dict[str, str] = {}
+    for r in rows:
+        name_to_id[r.name] = r.id
+        at = r.asset_type.value if hasattr(r.asset_type, "value") else str(r.asset_type)
+        # Pod-level assets (agents, mcp servers, model servers)
+        if at in ("agentic_framework", "mcp_server", "model_server", "k8s_pod"):
+            ai_pod_names.add(r.name)
+        # Controller-level assets — used by image-change / delete / scale-to-zero rules
+        if at == "k8s_deployment":
+            ai_deployment_names.add(r.name)
+        # Service-level assets — used by proxy / service-delete rules
+        if at == "k8s_service":
+            ai_service_names.add(r.name)
+        if r.namespace:
+            ai_namespaces.add(r.namespace)
+        sa = (r.metadata_ or {}).get("service_account")
+        if sa and r.namespace:
+            ai_service_accounts.add(f"{r.namespace}/{sa}")
+
+    ai_scope = {
+        "pod_names": ai_pod_names,
+        "namespaces": ai_namespaces,
+        "service_accounts": ai_service_accounts,
+        "deployment_names": ai_deployment_names,
+        "service_names": ai_service_names,
+    }
 
     # Load already-processed audit IDs to deduplicate
     audit_ids = [e.get("auditID") for e in events if e.get("auditID")]
@@ -44,7 +78,24 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
         if aid and aid in existing:
             continue
 
-        threat_dict = evaluate(event, ai_asset_names)
+        # Trusted installer filter — known-safe automation principals (GitOps
+        # controllers, CI pipelines, OpenShift operators) routinely mutate
+        # Roles, RoleBindings, Deployments, etc. Those events are suppressed.
+        #
+        # But trust is SCOPED: interactive and credential-sensitive subresources
+        # (pods/exec, pods/attach, serviceaccounts/token, ...) are never
+        # suppressed — no legitimate automation execs into an AI workload or
+        # mints a foreign SA token. A compromised pipeline SA looks exactly
+        # like an attacker at that point.
+        username = event.get("user", {}).get("username", "")
+        verb = event.get("verb", "")
+        subres = event.get("objectRef", {}).get("subresource", "")
+        is_mutation = verb in {"create", "update", "patch", "delete", "deletecollection"}
+        is_sensitive_subres = subres in {"exec", "attach", "portforward", "proxy", "token"}
+        if trusted_installers.is_trusted(username) and is_mutation and not is_sensitive_subres:
+            continue
+
+        threat_dict = evaluate(event, ai_scope)
         if not threat_dict:
             continue
 

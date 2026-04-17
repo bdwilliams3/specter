@@ -21,6 +21,7 @@ class ThreatCategory(str, enum.Enum):
     unauthorized_access = "unauthorized_access"
     anomalous_api_usage = "anomalous_api_usage"
     supply_chain = "supply_chain"
+    availability = "availability"
 
 
 class ThreatEvent(Base):

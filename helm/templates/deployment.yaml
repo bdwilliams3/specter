@@ -30,6 +30,9 @@ spec:
             - name: data
               mountPath: /data
             {{- end }}
+            - name: trusted-installers
+              mountPath: /etc/specter
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -48,3 +51,6 @@ spec:
           persistentVolumeClaim:
             claimName: specter-data
         {{- end }}
+        - name: trusted-installers
+          configMap:
+            name: specter-trusted-installers

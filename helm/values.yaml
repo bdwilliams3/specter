@@ -53,6 +53,40 @@ scanners:
     accessKeySecret: ""
     regionId: cn-hangzhou
 
+# Principals Specter will NOT flag on mutation-class rules.
+# fnmatch glob patterns against audit event user.username.
+# Raw `terraform apply` authenticates as its kubeconfig user — if your pipeline
+# uses a dedicated SA or service user, add it here.
+trustedInstallers:
+  # Bootstrap / cluster admin
+  - "kubernetes-admin"
+
+  # GitOps
+  - "system:serviceaccount:argocd:*"
+  - "system:serviceaccount:flux-system:*"
+
+  # Tekton (k8s-native CI)
+  - "system:serviceaccount:tekton-pipelines:*"
+
+  # Jenkins (in-cluster)
+  - "system:serviceaccount:jenkins:*"
+  - "system:serviceaccount:cicd:jenkins*"
+
+  # Harness delegate
+  - "system:serviceaccount:harness-delegate:*"
+  - "system:serviceaccount:harness-delegate-ng:*"
+
+  # Red Hat / OpenShift Lightspeed + OpenShift pipelines
+  - "system:serviceaccount:openshift-lightspeed:*"
+  - "system:serviceaccount:openshift-operators:*"
+  - "system:serviceaccount:openshift-gitops:*"
+  - "system:serviceaccount:openshift-pipelines:*"
+
+  # Terraform-shaped in-cluster operators (Crossplane, tf-controller)
+  - "system:serviceaccount:upbound-system:*"
+  - "system:serviceaccount:crossplane-system:*"
+  - "system:serviceaccount:flux-system:tf-controller"
+
 observability:
   splunk:
     enabled: false

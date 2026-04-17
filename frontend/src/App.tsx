@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Threats from './pages/Threats'
+import Rules from './pages/Rules'
 import Vulnerabilities from './pages/Vulnerabilities'
 import Policies from './pages/Policies'
 import Graph from './pages/Graph'
@@ -25,8 +26,10 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="threats" element={<Threats />} />
           {/* legacy redirect */}
+          <Route path="threats" element={<Navigate to="/threats/events" replace />} />
+          <Route path="threats/events" element={<Threats />} />
+          <Route path="threats/rules" element={<Rules />} />
           <Route path="vulnerabilities" element={<Navigate to="/posture/vulnerabilities" replace />} />
           <Route path="posture/vulnerabilities" element={<Vulnerabilities />} />
           <Route path="posture/policies" element={<Policies />} />

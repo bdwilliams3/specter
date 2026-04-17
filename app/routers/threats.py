@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.threat import ThreatEvent
 from app.schemas.threat import ThreatOut
 from app.auth.dependencies import get_current_user
+from app.detectors.registry import RULES, SUPPORTED_CLOUDS
+from app.config import settings
 from typing import Optional
 
 router = APIRouter(prefix="/api/threats", tags=["threats"])
@@ -38,6 +41,44 @@ async def list_threats(
         "page_size": page_size,
         "items": [ThreatOut.model_validate(t).model_dump() for t in threats],
     }
+
+
+@router.get("/clouds")
+async def list_clouds(_user: dict = Depends(get_current_user)):
+    return {"items": SUPPORTED_CLOUDS}
+
+
+@router.get("/rules")
+async def list_rules(
+    cloud: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
+    rules = [r for r in RULES if not cloud or r["cloud"] == cloud]
+
+    cutoff = datetime.utcnow() - timedelta(hours=settings.threat_retention_hours)
+    fire_q = (
+        select(
+            ThreatEvent.threat_name,
+            func.count(ThreatEvent.id).label("fires"),
+            func.max(ThreatEvent.detected_at).label("last_fired"),
+        )
+        .where(ThreatEvent.detected_at >= cutoff)
+        .group_by(ThreatEvent.threat_name)
+    )
+    fire_rows = (await db.execute(fire_q)).all()
+    fires_by_name = {row.threat_name: row for row in fire_rows}
+
+    items = []
+    for r in rules:
+        stat = fires_by_name.get(r["threat_name"])
+        items.append({
+            **r,
+            "fires_window": int(stat.fires) if stat else 0,
+            "last_fired_at": stat.last_fired.isoformat() + "Z" if stat and stat.last_fired else None,
+        })
+
+    return {"total": len(items), "items": items}
 
 
 @router.get("/{threat_id}", response_model=ThreatOut)

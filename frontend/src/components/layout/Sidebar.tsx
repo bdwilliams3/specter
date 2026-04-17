@@ -10,6 +10,8 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  Zap,
+  FileWarning,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState } from 'react'
@@ -17,7 +19,11 @@ import { useState } from 'react'
 const topNavItems = [
   { to: '/',         icon: LayoutDashboard, label: 'Dashboard',  exact: true },
   { to: '/inventory', icon: Package,         label: 'Inventory' },
-  { to: '/threats',   icon: AlertTriangle,   label: 'Threats' },
+]
+
+const threatItems = [
+  { to: '/threats/events', icon: FileWarning, label: 'Events' },
+  { to: '/threats/rules',  icon: Zap,         label: 'Rules' },
 ]
 
 const postureItems = [
@@ -72,7 +78,9 @@ function SubNavItem({ to, icon: Icon, label }: { to: string; icon: React.Element
 export default function Sidebar() {
   const location = useLocation()
   const inPosture = location.pathname.startsWith('/posture')
+  const inThreats = location.pathname.startsWith('/threats')
   const [postureOpen, setPostureOpen] = useState(inPosture)
+  const [threatsOpen, setThreatsOpen] = useState(inThreats)
 
   return (
     <aside className="flex flex-col w-56 shrink-0 bg-specter-surface border-r border-specter-border min-h-screen">
@@ -90,6 +98,33 @@ export default function Sidebar() {
         {topNavItems.map(({ to, icon, label, exact }) => (
           <NavItem key={to} to={to} icon={icon} label={label} exact={exact} />
         ))}
+
+        {/* Threat Detection group */}
+        <div className="mt-1">
+          <button
+            onClick={() => setThreatsOpen(o => !o)}
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors',
+              inThreats
+                ? 'text-specter-accent'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-specter-border/60'
+            )}
+          >
+            <AlertTriangle size={16} />
+            <span className="flex-1 text-left">Threat Detection</span>
+            {threatsOpen
+              ? <ChevronDown size={13} className="text-slate-500" />
+              : <ChevronRight size={13} className="text-slate-500" />
+            }
+          </button>
+          {threatsOpen && (
+            <div className="flex flex-col gap-0.5 mt-0.5">
+              {threatItems.map(({ to, icon, label }) => (
+                <SubNavItem key={to} to={to} icon={icon} label={label} />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Posture Management group */}
         <div className="mt-1">

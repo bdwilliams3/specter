@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     threat_retention_hours: int = 72
     threat_purge_interval_minutes: int = 15
 
+    # Inventory discovery loop — interrogates the cluster for AI workloads.
+    # The discovered inventory is the source of truth for rule scoping.
+    inventory_interval_minutes: int = 60
+
+    # Trusted installer allowlist — loaded from a ConfigMap-mounted YAML.
+    # Principals matching any of these globs are exempt from mutation-class rules.
+    trusted_installers_path: str = "/etc/specter/trusted-installers.yaml"
+
     # OIDC / SSO
     oidc_issuer: str = ""
     oidc_client_id: str = ""

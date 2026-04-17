@@ -19,7 +19,8 @@ interface Toast {
 const PAGE_TITLES: Record<string, string> = {
   '/':                          'Dashboard',
   '/inventory':                 'AI Asset Inventory',
-  '/threats':                   'Threat Events',
+  '/threats/events':            'Threat Events',
+  '/threats/rules':             'Detection Rules',
   '/posture/vulnerabilities':   'Vulnerabilities',
   '/posture/policies':          'Policies',
   '/graph':                     'Topology Map',

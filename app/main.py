@@ -13,6 +13,7 @@ import app.models  # noqa: F401
 
 from app.routers import auth, assets, threats, vulnerabilities, graph, scans, reports, metrics, integrations, ws, collector
 from app.services.threat_retention import retention_loop
+from app.services.inventory_loop import inventory_loop
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -24,8 +25,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database ready.")
     purge_task = asyncio.create_task(retention_loop())
+    inventory_task = asyncio.create_task(inventory_loop())
     yield
     purge_task.cancel()
+    inventory_task.cancel()
     logger.info("Specter shutting down.")
 
 

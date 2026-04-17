@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: specter-trusted-installers
+  namespace: specter
+data:
+  trusted-installers.yaml: |
+    # Kubernetes principals whose mutations Specter should NOT flag as threats.
+    # Matched against audit event user.username using fnmatch glob patterns.
+    #
+    # NOTE: Direct `terraform apply` from a laptop or CI runner authenticates with
+    # whatever kubeconfig user it's given (e.g. kubernetes-admin or a human OIDC
+    # identity). There's no universal SA pattern — customers running raw Terraform
+    # from a pipeline should add their runner's SA or user explicitly.
+    trustedInstallers:
+{{- range .Values.trustedInstallers }}
+      - {{ . | quote }}
+{{- end }}
