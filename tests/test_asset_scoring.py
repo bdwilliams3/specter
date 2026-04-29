@@ -1,4 +1,5 @@
 from app.services.asset_scoring import calculate_ai_confidence, confidence_bucket, normalize_signals
+from app.services.network_service import _runtime_ai_signal
 
 
 def test_diminishing_returns_scoring_math():
@@ -41,3 +42,18 @@ def test_dns_and_sni_collapse_to_one_provider_signal():
             "weight": 5.0,
         }
     ]
+
+
+def test_runtime_dns_and_sni_events_become_provider_signals():
+    dns_signal = _runtime_ai_signal({
+        "event_type": "dns_query",
+        "dns_query": "api.openai.com.",
+    })
+    sni_signal = _runtime_ai_signal({
+        "event_type": "tls_sni",
+        "tls_sni": "api.anthropic.com",
+    })
+    assert dns_signal["signal_type"] == "ai_provider_dns"
+    assert dns_signal["value"] == "api.openai.com"
+    assert sni_signal["signal_type"] == "ai_provider_sni"
+    assert sni_signal["value"] == "api.anthropic.com"

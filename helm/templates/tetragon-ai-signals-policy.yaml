@@ -1,0 +1,73 @@
+{{- if .Values.tetragon.aiSignalsPolicy.enabled }}
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: specter-ai-signals
+spec:
+  kprobes:
+    - call: "tcp_connect"
+      syscall: false
+      args:
+        - index: 0
+          type: "sock"
+      selectors:
+        - matchNamespaces:
+            namespace:
+              operator: NotIn
+              values:
+                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+                - {{ . | quote }}
+                {{- end }}
+          matchActions:
+            - action: Post
+    - call: "__sys_sendto"
+      syscall: true
+      args:
+        - index: 0
+          type: "fd"
+        - index: 1
+          type: "char_buf"
+          sizeArgIndex: 2
+        - index: 2
+          type: "size_t"
+      selectors:
+        - matchNamespaces:
+            namespace:
+              operator: NotIn
+              values:
+                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+                - {{ . | quote }}
+                {{- end }}
+          matchArgs:
+            - index: 2
+              operator: GreaterThan
+              values:
+                - "12"
+          matchActions:
+            - action: Post
+    - call: "tcp_sendmsg"
+      syscall: false
+      args:
+        - index: 0
+          type: "sock"
+        - index: 1
+          type: "char_iovec"
+          sizeArgIndex: 2
+        - index: 2
+          type: "size_t"
+      selectors:
+        - matchNamespaces:
+            namespace:
+              operator: NotIn
+              values:
+                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+                - {{ . | quote }}
+                {{- end }}
+          matchArgs:
+            - index: 2
+              operator: GreaterThan
+              values:
+                - "32"
+          matchActions:
+            - action: Post
+{{- end }}

@@ -53,6 +53,19 @@ scanners:
     accessKeySecret: ""
     regionId: cn-hangzhou
 
+tetragon:
+  aiSignalsPolicy:
+    enabled: true
+    excludedNamespaces:
+      - kube-system
+      - specter
+    providerHosts:
+      - api.openai.com
+      - api.anthropic.com
+      - generativelanguage.googleapis.com
+      - api.cohere.ai
+      - inference.ai.azure.com
+
 # Principals Specter will NOT flag on mutation-class rules.
 # fnmatch glob patterns against audit event user.username.
 # Raw `terraform apply` authenticates as its kubeconfig user — if your pipeline
