@@ -11,12 +11,7 @@ spec:
         - index: 0
           type: "sock"
       selectors:
-        - matchNamespaces:
-            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-            - namespace: {{ . | quote }}
-              operator: NotIn
-            {{- end }}
-          matchActions:
+        - matchActions:
             - action: Post
     - call: "__sys_sendto"
       syscall: true
@@ -29,12 +24,7 @@ spec:
         - index: 2
           type: "size_t"
       selectors:
-        - matchNamespaces:
-            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-            - namespace: {{ . | quote }}
-              operator: NotIn
-            {{- end }}
-          matchArgs:
+        - matchArgs:
             - index: 2
               operator: GreaterThan
               values:
@@ -52,12 +42,7 @@ spec:
         - index: 2
           type: "size_t"
       selectors:
-        - matchNamespaces:
-            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-            - namespace: {{ . | quote }}
-              operator: NotIn
-            {{- end }}
-          matchArgs:
+        - matchArgs:
             - index: 2
               operator: GreaterThan
               values:
