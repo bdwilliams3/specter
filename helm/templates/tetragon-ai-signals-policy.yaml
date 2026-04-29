@@ -12,12 +12,10 @@ spec:
           type: "sock"
       selectors:
         - matchNamespaces:
-            namespace:
+            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+            - namespace: {{ . | quote }}
               operator: NotIn
-              values:
-                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-                - {{ . | quote }}
-                {{- end }}
+            {{- end }}
           matchActions:
             - action: Post
     - call: "__sys_sendto"
@@ -32,12 +30,10 @@ spec:
           type: "size_t"
       selectors:
         - matchNamespaces:
-            namespace:
+            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+            - namespace: {{ . | quote }}
               operator: NotIn
-              values:
-                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-                - {{ . | quote }}
-                {{- end }}
+            {{- end }}
           matchArgs:
             - index: 2
               operator: GreaterThan
@@ -57,12 +53,10 @@ spec:
           type: "size_t"
       selectors:
         - matchNamespaces:
-            namespace:
+            {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
+            - namespace: {{ . | quote }}
               operator: NotIn
-              values:
-                {{- range .Values.tetragon.aiSignalsPolicy.excludedNamespaces }}
-                - {{ . | quote }}
-                {{- end }}
+            {{- end }}
           matchArgs:
             - index: 2
               operator: GreaterThan
