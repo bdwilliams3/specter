@@ -27,6 +27,8 @@ class ThreatOut(BaseModel):
     mitre_atlas: Optional[str] = None
     asset_id: Optional[str] = None
     raw_evidence: dict = Field(default_factory=dict)
+    suppressed: bool = False
+    suppression_reason: Optional[str] = None
     detected_at: datetime
     scan_run_id: Optional[str] = None
 

@@ -1,0 +1,76 @@
+rules:
+  - rule_id: k8s-audit-pod-exec
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-pod-portforward
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-pod-proxy
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-impersonate-ai-sa
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-privileged-pod-in-ai-ns
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-host-ns-pod-in-ai-ns
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-secret-access
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-secret-mutation
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-webhook-mutation
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-sa-binding
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-token-request
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-rogue-pod
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-rogue-controller
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-image-change
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-configmap-mutation
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ingress-ai-service
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-pod-delete
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-deployment-delete
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-scale-to-zero
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-netpol-mutation
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-pdb-delete
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-resourcequota-mutation
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-sa-delete
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-service-delete
+    min_asset_confidence: 0
+    enabled: true
+  - rule_id: k8s-audit-ai-namespace-delete
+    min_asset_confidence: 0
+    enabled: true

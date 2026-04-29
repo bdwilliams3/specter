@@ -62,6 +62,34 @@ _AI_SECRET_PATTERNS = (
     "langchain", "langfuse", "api-key",
 )
 
+RULE_ID_BY_THREAT_NAME = {
+    "Unexpected Pod Execution over Kubernetes API": "k8s-audit-pod-exec",
+    "Port-Forward to AI Workload": "k8s-audit-pod-portforward",
+    "Kubernetes API Proxy to AI Workload": "k8s-audit-pod-proxy",
+    "Impersonation of AI ServiceAccount": "k8s-audit-impersonate-ai-sa",
+    "Privileged Pod Created in AI Namespace": "k8s-audit-privileged-pod-in-ai-ns",
+    "Host-Namespace Pod in AI Namespace": "k8s-audit-host-ns-pod-in-ai-ns",
+    "Unauthorized AI Secret Access": "k8s-audit-secret-access",
+    "AI Secret Mutation": "k8s-audit-secret-mutation",
+    "Admission Webhook Mutation": "k8s-audit-webhook-mutation",
+    "AI Service Account Binding Granted": "k8s-audit-ai-sa-binding",
+    "Service Account Token Harvesting": "k8s-audit-token-request",
+    "Unsanctioned Pod Creation in AI Namespace": "k8s-audit-rogue-pod",
+    "Unsanctioned Workload Controller in AI Namespace": "k8s-audit-rogue-controller",
+    "AI Workload Image Change": "k8s-audit-ai-image-change",
+    "ConfigMap Mutation in AI Namespace": "k8s-audit-configmap-mutation",
+    "External Exposure of AI Service": "k8s-audit-ingress-ai-service",
+    "AI Pod Deletion": "k8s-audit-ai-pod-delete",
+    "AI Workload Controller Deletion": "k8s-audit-ai-deployment-delete",
+    "AI Workload Scaled to Zero": "k8s-audit-ai-scale-to-zero",
+    "NetworkPolicy Mutation in AI Namespace": "k8s-audit-netpol-mutation",
+    "PodDisruptionBudget Removed in AI Namespace": "k8s-audit-pdb-delete",
+    "ResourceQuota Mutation in AI Namespace": "k8s-audit-resourcequota-mutation",
+    "AI ServiceAccount Deletion": "k8s-audit-ai-sa-delete",
+    "AI Service Deletion": "k8s-audit-ai-service-delete",
+    "AI Namespace Deletion": "k8s-audit-ai-namespace-delete",
+}
+
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -181,7 +209,11 @@ def _threat(ctx: EventContext, *, threat_name: str, description: str,
             severity: str, category: str, atlas: str,
             extra_evidence: dict | None = None) -> dict:
     evidence = ctx.evidence if not extra_evidence else {**ctx.evidence, **extra_evidence}
+    rule_id = RULE_ID_BY_THREAT_NAME.get(threat_name)
+    if rule_id:
+        evidence = {**evidence, "rule_id": rule_id}
     return {
+        "rule_id": rule_id,
         "threat_name": threat_name,
         "description": description,
         "severity": severity,

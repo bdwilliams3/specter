@@ -4,10 +4,12 @@ from sqlalchemy import select, func
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.threat import ThreatEvent
+from app.models.rule_config import RuleConfig
 from app.schemas.threat import ThreatOut
 from app.auth.dependencies import get_current_user
 from app.detectors.registry import RULES, SUPPORTED_CLOUDS
 from app.config import settings
+from app.services.rule_config import seed_rule_defaults
 from typing import Optional
 
 router = APIRouter(prefix="/api/threats", tags=["threats"])
@@ -54,6 +56,7 @@ async def list_rules(
     db: AsyncSession = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    await seed_rule_defaults(db)
     rules = [r for r in RULES if not cloud or r["cloud"] == cloud]
 
     cutoff = datetime.utcnow() - timedelta(hours=settings.threat_retention_hours)
@@ -68,14 +71,34 @@ async def list_rules(
     )
     fire_rows = (await db.execute(fire_q)).all()
     fires_by_name = {row.threat_name: row for row in fire_rows}
+    suppressed_q = (
+        select(
+            ThreatEvent.threat_name,
+            func.count(ThreatEvent.id).label("suppressed"),
+        )
+        .where(ThreatEvent.detected_at >= cutoff)
+        .where(ThreatEvent.suppressed == True)
+        .group_by(ThreatEvent.threat_name)
+    )
+    suppressed_rows = (await db.execute(suppressed_q)).all()
+    suppressed_by_name = {row.threat_name: row for row in suppressed_rows}
+    config_rows = (await db.execute(select(RuleConfig))).scalars().all()
+    configs_by_rule = {config.rule_id: config for config in config_rows}
 
     items = []
     for r in rules:
         stat = fires_by_name.get(r["threat_name"])
+        suppressed = suppressed_by_name.get(r["threat_name"])
+        config = configs_by_rule.get(r["rule_id"])
         items.append({
             **r,
             "fires_window": int(stat.fires) if stat else 0,
+            "suppressed_window": int(suppressed.suppressed) if suppressed else 0,
             "last_fired_at": stat.last_fired.isoformat() + "Z" if stat and stat.last_fired else None,
+            "enabled": config.enabled if config else True,
+            "min_asset_confidence": config.min_asset_confidence if config else 0,
+            "severity_override": config.severity_override if config else None,
+            "route": config.route if config else None,
         })
 
     return {"total": len(items), "items": items}

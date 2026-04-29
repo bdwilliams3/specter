@@ -42,6 +42,24 @@ AI_PORTS = {
     8888: "jupyter",
 }
 
+WEAK_AI_TERMS = {
+    "ai", "llm", "model", "openai", "anthropic", "gemini", "ollama",
+    "vllm", "langchain", "autogen", "crewai", "mcp", "huggingface",
+}
+
+AI_IMAGE_TERMS = {
+    "ollama", "vllm", "triton", "text-generation-inference", "tgi",
+    "langchain", "openai", "anthropic", "mcp", "huggingface",
+}
+
+GPU_RESOURCE_KEYS = {
+    "nvidia.com/gpu", "amd.com/gpu", "habana.ai/gaudi", "google.com/tpu",
+}
+
+AI_DEVICE_PATH_TERMS = {
+    "/dev/nvidia", "/dev/dri", "/dev/kfd", "/dev/infiniband",
+}
+
 # Ports that strongly indicate serving (not consuming)
 SERVER_PORTS = {8000, 11434, 7860, 8501}
 
@@ -96,6 +114,8 @@ def _extract_container_signals(containers: list) -> dict:
     runs_as_nonroot = True
     privileged = False
     llm_envs_exposed = []
+    gpu_resource_limits = []
+    device_mounts = []
 
     for container in containers:
         images.append(container.image or "")
@@ -120,6 +140,15 @@ def _extract_container_signals(containers: list) -> dict:
         resources = container.resources
         if not resources or not resources.limits:
             has_resource_limits = False
+        else:
+            for key, value in (resources.limits or {}).items():
+                if str(key) in GPU_RESOURCE_KEYS:
+                    gpu_resource_limits.append({"resource": str(key), "value": str(value)})
+
+        for mount in (container.volume_mounts or []):
+            mount_path = mount.mount_path or ""
+            if any(term in mount_path for term in AI_DEVICE_PATH_TERMS):
+                device_mounts.append(mount_path)
 
         # Security context
         sc = container.security_context
@@ -140,10 +169,80 @@ def _extract_container_signals(containers: list) -> dict:
         "ai_ports": ai_ports_found,
         "llm_envs_exposed": llm_envs_exposed,
         "has_resource_limits": has_resource_limits,
+        "gpu_resource_limits": gpu_resource_limits,
+        "device_mounts": device_mounts,
         "has_readonly_root": has_readonly_root,
         "runs_as_nonroot": runs_as_nonroot,
         "privileged": privileged,
     }
+
+
+def _metadata_dict(meta) -> dict:
+    labels = meta.labels or {}
+    annotations = meta.annotations or {}
+    return {
+        "name": meta.name or "",
+        "labels": labels,
+        "annotations": annotations,
+    }
+
+
+def _has_weak_term(value: str) -> bool:
+    lowered = value.lower()
+    return any(term in lowered for term in WEAK_AI_TERMS)
+
+
+def _build_ai_signals(meta, signals: dict, source: str) -> list[dict]:
+    meta_dict = _metadata_dict(meta)
+    out: list[dict] = []
+
+    for env_name in sorted(set(signals["ai_env_vars"])):
+        if env_name in LLM_CONSUMER_ENVS:
+            signal_type, weight = "llm_api_env", 4.0
+        elif env_name in MODEL_SERVER_ENVS or any(env_name.startswith(p) for p in MODEL_SERVER_ENVS):
+            signal_type, weight = "model_server_env", 3.0
+        else:
+            signal_type, weight = "agent_tool_env", 3.0
+        out.append({"signal_type": signal_type, "source": source, "value": env_name, "weight": weight})
+
+    for port in signals["ai_ports"]:
+        out.append({
+            "signal_type": "declared_ai_port",
+            "source": source,
+            "value": str(port["port"]),
+            "weight": 2.0,
+        })
+
+    for image in signals["images"]:
+        lowered = image.lower()
+        if any(term in lowered for term in AI_IMAGE_TERMS):
+            out.append({"signal_type": "weak_image_match", "source": source, "value": image, "weight": 1.0})
+
+    if _has_weak_term(meta_dict["name"]):
+        out.append({"signal_type": "weak_name_match", "source": source, "value": meta_dict["name"], "weight": 1.0})
+
+    for key, value in meta_dict["labels"].items():
+        rendered = f"{key}={value}"
+        if _has_weak_term(rendered):
+            out.append({"signal_type": "weak_label_match", "source": source, "value": rendered, "weight": 1.0})
+
+    for key, value in meta_dict["annotations"].items():
+        rendered = f"{key}={value}"
+        if _has_weak_term(rendered):
+            out.append({"signal_type": "weak_annotation_match", "source": source, "value": rendered, "weight": 1.0})
+
+    for gpu in signals["gpu_resource_limits"]:
+        out.append({
+            "signal_type": "gpu_resource_limit",
+            "source": source,
+            "value": f"{gpu['resource']}={gpu['value']}",
+            "weight": 3.0,
+        })
+
+    for mount_path in signals["device_mounts"]:
+        out.append({"signal_type": "device_mount", "source": source, "value": mount_path, "weight": 3.0})
+
+    return out
 
 
 class KubernetesMCPScanner(BaseScanner):
@@ -222,7 +321,8 @@ class KubernetesMCPScanner(BaseScanner):
             status = pod.status
 
             signals = _extract_container_signals(spec.containers or [])
-            is_ai = bool(signals["ai_env_vars"] or signals["ai_ports"])
+            ai_signals = _build_ai_signals(meta, signals, "k8s_pod")
+            is_ai = bool(signals["ai_env_vars"] or signals["ai_ports"] or ai_signals)
 
             # Only inventory AI workloads
             if not is_ai:
@@ -249,8 +349,11 @@ class KubernetesMCPScanner(BaseScanner):
                     "images": signals["images"],
                     "ai_env_vars": signals["ai_env_vars"],
                     "ai_ports": signals["ai_ports"],
+                    "ai_signals": ai_signals,
                     "llm_envs_exposed": signals["llm_envs_exposed"],
                     "has_resource_limits": signals["has_resource_limits"],
+                    "gpu_resource_limits": signals["gpu_resource_limits"],
+                    "device_mounts": signals["device_mounts"],
                     "has_readonly_root": signals["has_readonly_root"],
                     "runs_as_nonroot": signals["runs_as_nonroot"],
                     "privileged": signals["privileged"],
@@ -258,6 +361,7 @@ class KubernetesMCPScanner(BaseScanner):
                     "sa_verbs": sa_verbs,
                     "automount_sa_token": automount_enabled,
                 },
+                "ai_signals": ai_signals,
                 "risk_score": 60,
             })
 
@@ -290,6 +394,15 @@ class KubernetesMCPScanner(BaseScanner):
                 "namespace": meta.namespace,
                 "cluster": target or "in-cluster",
                 "metadata_": {"type": svc_type, "ports": ports},
+                "ai_signals": [
+                    {
+                        "signal_type": "declared_ai_port",
+                        "source": "k8s_service",
+                        "value": str(port),
+                        "weight": 2.0,
+                    }
+                    for port in sorted(port_numbers & set(AI_PORTS.keys()))
+                ],
                 "risk_score": 30 if svc_type == "NodePort" else 10,
             })
 
@@ -308,7 +421,8 @@ class KubernetesMCPScanner(BaseScanner):
             # Only inventory deployments whose pod template has AI signals
             pod_template_containers = spec.template.spec.containers if spec.template and spec.template.spec else []
             signals = _extract_container_signals(pod_template_containers)
-            if not signals["ai_env_vars"] and not signals["ai_ports"]:
+            ai_signals = _build_ai_signals(meta, signals, "k8s_deployment")
+            if not signals["ai_env_vars"] and not signals["ai_ports"] and not ai_signals:
                 continue
 
             result.assets.append({
@@ -322,7 +436,11 @@ class KubernetesMCPScanner(BaseScanner):
                     "ready": status.ready_replicas if status else 0,
                     "ai_ports": signals["ai_ports"],
                     "ai_env_vars": signals["ai_env_vars"],
+                    "ai_signals": ai_signals,
+                    "gpu_resource_limits": signals["gpu_resource_limits"],
+                    "device_mounts": signals["device_mounts"],
                 },
+                "ai_signals": ai_signals,
                 "risk_score": 60,
             })
 

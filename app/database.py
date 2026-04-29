@@ -40,14 +40,33 @@ _NEW_THREAT_COLUMNS = [
     ("resource",          "VARCHAR"),
     ("namespace",         "VARCHAR"),
     ("source_ips",        "JSON"),
+    ("suppressed",        "BOOLEAN DEFAULT 0"),
+    ("suppression_reason", "VARCHAR"),
+]
+
+_NEW_ASSET_COLUMNS = [
+    ("ai_confidence", "FLOAT DEFAULT 0.0"),
+    ("triage_state", "VARCHAR"),
+    ("triage_reason", "VARCHAR"),
+    ("confidence_ceiling", "FLOAT"),
+    ("triage_updated_by", "VARCHAR"),
+    ("triage_updated_at", "DATETIME"),
 ]
 
 
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for col, typedef in _NEW_ASSET_COLUMNS:
+            try:
+                await conn.execute(text(f"ALTER TABLE ai_assets ADD COLUMN {col} {typedef}"))
+            except Exception:
+                pass  # column already exists
         for col, typedef in _NEW_THREAT_COLUMNS:
             try:
                 await conn.execute(text(f"ALTER TABLE threat_events ADD COLUMN {col} {typedef}"))
             except Exception:
                 pass  # column already exists
+    from app.services.rule_config import seed_rule_defaults
+    async with AsyncSessionLocal() as session:
+        await seed_rule_defaults(session)

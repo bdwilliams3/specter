@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.models.asset import AIAsset
 from app.models.threat import ThreatEvent, ThreatSeverity, ThreatCategory
+from app.services.asset_scoring import AI_PROVIDER_HOSTS, add_runtime_signal
 from app.services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -63,18 +64,27 @@ async def process_network_events(events: list[dict], db: AsyncSession) -> int:
     if not events:
         return 0
 
-    result = await db.execute(select(AIAsset.name, AIAsset.id, AIAsset.asset_type))
-    rows = result.all()
-    ai_pod_names = {r.name for r in rows}
-    name_to_id = {r.name: r.id for r in rows}
+    result = await db.execute(select(AIAsset))
+    assets = result.scalars().all()
+    ai_pod_names = {asset.name for asset in assets}
+    name_to_asset = {(asset.name, asset.namespace): asset for asset in assets}
+    name_to_id = {asset.name: asset.id for asset in assets}
 
     new_threats = 0
+    new_signals = 0
     for event in events:
+        pod_name = event.get("pod", "")
+        namespace = event.get("namespace")
+        asset = name_to_asset.get((pod_name, namespace))
+        signal = _runtime_ai_signal(event)
+        if asset and signal:
+            await add_runtime_signal(db, asset, signal)
+            new_signals += 1
+
         threat = _evaluate_network_event(event, ai_pod_names)
         if not threat:
             continue
 
-        pod_name = event.get("pod", "")
         asset_id = name_to_id.get(pod_name)
 
         try:
@@ -112,11 +122,36 @@ async def process_network_events(events: list[dict], db: AsyncSession) -> int:
         except Exception as e:
             logger.warning("Failed to persist network threat: %s", e)
 
-    if new_threats:
+    if new_threats or new_signals:
         await db.commit()
-        logger.info("Persisted %d threats from %d network events", new_threats, len(events))
+        logger.info(
+            "Persisted %d threats and %d AI signals from %d network events",
+            new_threats, new_signals, len(events)
+        )
 
     return new_threats
+
+
+def _runtime_ai_signal(event: dict) -> dict | None:
+    event_type = event.get("type") or event.get("event_type") or event.get("kind")
+    host = (
+        event.get("dns_query")
+        or event.get("query")
+        or event.get("sni")
+        or event.get("tls_sni")
+        or event.get("server_name")
+        or event.get("host")
+        or ""
+    ).lower().rstrip(".")
+    if not host or host not in AI_PROVIDER_HOSTS:
+        return None
+    signal_type = "ai_provider_sni" if event_type in {"tls_sni", "sni", "tls"} else "ai_provider_dns"
+    return {
+        "signal_type": signal_type,
+        "source": "tetragon",
+        "value": host,
+        "weight": 5.0,
+    }
 
 
 def _evaluate_network_event(event: dict, ai_pod_names: set[str]) -> dict | None:
