@@ -11,7 +11,7 @@ from app.database import init_db
 # Import models so Base.metadata is populated
 import app.models  # noqa: F401
 
-from app.routers import auth, assets, threats, vulnerabilities, graph, scans, reports, metrics, integrations, ws, collector
+from app.routers import auth, assets, threats, vulnerabilities, graph, scans, reports, metrics, integrations, ws, collector, rules
 from app.services.threat_retention import retention_loop
 from app.services.inventory_loop import inventory_loop
 
@@ -61,6 +61,7 @@ app.include_router(metrics.router)
 app.include_router(integrations.router)
 app.include_router(ws.router)
 app.include_router(collector.router)
+app.include_router(rules.router)
 
 
 @app.get("/healthz")
