@@ -18,8 +18,13 @@ Primary development focus is Kubernetes policy, asset inventory, and detector lo
 
 ## Branch Workflow
 - Create a branch for changes so the user can review them.
-- Keep work on the review branch until the item is moved to `DONE`.
-- Merge to `main` only after the item is moved to `DONE`.
+- Commit completed work before moving a Jira item to `In Progress`.
+- When a Jira item is moved to `Review`, merge the branch to `main` so the user can validate the merged deployment and UI.
+- Spin up or update the deployment after merging to `main` when UI or runtime validation is part of review.
+- Never move Jira tickets to `DONE`; the user reviews, accepts, and manually closes the work.
+- `In Progress` means the work is committed and still being actively developed.
+- `Review` means the work has been merged and is ready for user validation.
+- `Done` means the user has accepted the review and manually closed the ticket.
 
 ## Detector Principles
 - Detect AI-related assets using multiple weak signals, not a single brittle name match.
