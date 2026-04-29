@@ -10,6 +10,7 @@ from app.models.vulnerability import Vulnerability
 from app.models.connection import AssetConnection
 from app.scanners import get_scanner
 from app.detectors import vuln_detector
+from app.services.asset_scoring import calculate_ai_confidence, replace_asset_signals
 from app.services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -65,27 +66,38 @@ async def run_scan(scanner_name: str, target: str, db: AsyncSession) -> ScanRun:
 
         # Upsert assets
         asset_name_to_id: dict[str, str] = {}
+        assets_for_signals: list[tuple[AIAsset, list[dict]]] = []
         for a in result.assets:
             key = (scanner_name, a["name"], a.get("namespace", ""))
+            ai_signals = a.get("ai_signals", [])
+            ai_confidence = calculate_ai_confidence(ai_signals)
             if key in existing_assets:
                 # Update last_seen and risk_score
                 existing = existing_assets[key]
                 existing.last_seen = now
                 existing.risk_score = a.get("risk_score", existing.risk_score)
+                existing.ai_confidence = ai_confidence
                 existing.metadata_ = a.get("metadata_", existing.metadata_)
                 existing.scan_run_id = scan_run.id
                 asset_name_to_id[a["name"]] = existing.id
+                assets_for_signals.append((existing, ai_signals))
             else:
                 asset = AIAsset(
                     id=str(uuid.uuid4()),
                     scan_run_id=scan_run.id,
                     first_seen=now,
                     last_seen=now,
-                    **{k: v for k, v in a.items() if k != "metadata_"},
+                    ai_confidence=ai_confidence,
+                    **{k: v for k, v in a.items() if k not in ("metadata_", "ai_signals")},
                     metadata_=a.get("metadata_", {}),
                 )
                 db.add(asset)
                 asset_name_to_id[a["name"]] = asset.id
+                assets_for_signals.append((asset, ai_signals))
+
+        await db.flush()
+        for asset, ai_signals in assets_for_signals:
+            await replace_asset_signals(db, asset, ai_signals, source_prefix=scanner_name.split("_")[0])
 
         # --- Reconcile vulnerabilities ---
         # Key: (scanner_name, category, asset_name)

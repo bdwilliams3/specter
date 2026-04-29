@@ -4,6 +4,7 @@ from app.models.threat import ThreatEvent, ThreatSeverity, ThreatCategory
 from app.models.vulnerability import Vulnerability, VulnSeverity, VulnCategory
 from app.models.connection import AssetConnection, RelationType, TrustLevel
 from app.models.rule_config import RuleConfig, RuleConfigAudit
+from app.models.asset_signal import AIAssetSignal
 
 __all__ = [
     "ScanRun", "ScanStatus",
@@ -12,4 +13,5 @@ __all__ = [
     "Vulnerability", "VulnSeverity", "VulnCategory",
     "AssetConnection", "RelationType", "TrustLevel",
     "RuleConfig", "RuleConfigAudit",
+    "AIAssetSignal",
 ]

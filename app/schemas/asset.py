@@ -12,6 +12,7 @@ class AssetBase(BaseModel):
     cluster: Optional[str] = None
     endpoint_url: Optional[str] = None
     metadata_: dict = Field(default_factory=dict)
+    ai_confidence: float = 0.0
     risk_score: int = 0
 
 

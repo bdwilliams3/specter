@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
 from app.models.asset import AIAsset, AssetType
+from app.models.asset_signal import AIAssetSignal
 from app.schemas.asset import AssetOut
 from app.auth.dependencies import get_current_user
 from typing import Optional
@@ -47,6 +48,37 @@ async def get_asset(asset_id: str, db: AsyncSession = Depends(get_db), _user: di
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     return AssetOut.model_validate(asset)
+
+
+@router.get("/{asset_id}/signals")
+async def get_asset_signals(asset_id: str, db: AsyncSession = Depends(get_db), _user: dict = Depends(get_current_user)):
+    result = await db.execute(select(AIAsset).where(AIAsset.id == asset_id))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    signals_result = await db.execute(
+        select(AIAssetSignal)
+        .where(AIAssetSignal.asset_id == asset_id)
+        .order_by(AIAssetSignal.observed_at.desc())
+    )
+    signals = signals_result.scalars().all()
+    return {
+        "asset_id": asset.id,
+        "ai_confidence": asset.ai_confidence,
+        "items": [
+            {
+                "id": signal.id,
+                "signal_type": signal.signal_type,
+                "source": signal.source,
+                "value": signal.value,
+                "weight": signal.weight,
+                "observed_at": signal.observed_at.isoformat() if signal.observed_at else None,
+                "ttl_expires_at": signal.ttl_expires_at.isoformat() if signal.ttl_expires_at else None,
+            }
+            for signal in signals
+        ],
+    }
 
 
 @router.delete("/{asset_id}", status_code=204)
