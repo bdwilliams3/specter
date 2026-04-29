@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import String, DateTime, Integer, JSON, Enum as SAEnum, ForeignKey
+from sqlalchemy import String, DateTime, Integer, Float, JSON, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -30,6 +30,7 @@ class AIAsset(Base):
     cluster: Mapped[str | None] = mapped_column(String, nullable=True)
     endpoint_url: Mapped[str | None] = mapped_column(String, nullable=True)
     metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    ai_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

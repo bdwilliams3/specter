@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import String, DateTime, JSON, Enum as SAEnum, ForeignKey
+from sqlalchemy import String, DateTime, Boolean, JSON, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -42,6 +42,8 @@ class ThreatEvent(Base):
     namespace: Mapped[str | None] = mapped_column(String, nullable=True)
     source_ips: Mapped[list | None] = mapped_column(JSON, nullable=True)
     raw_evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    suppressed: Mapped[bool] = mapped_column(Boolean, default=False)
+    suppression_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     scan_run_id: Mapped[str | None] = mapped_column(String, ForeignKey("scan_runs.id"), nullable=True)
     mitre_atlas: Mapped[str | None] = mapped_column(String, nullable=True)
