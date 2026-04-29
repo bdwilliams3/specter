@@ -46,6 +46,9 @@ def _asset_confidence(row) -> float:
     confidence = getattr(row, "ai_confidence", None)
     if confidence is None:
         confidence = getattr(row, "risk_score", 0) or 0
+    ceiling = getattr(row, "confidence_ceiling", None)
+    if ceiling is not None:
+        confidence = min(float(confidence), float(ceiling))
     return float(confidence)
 
 
@@ -77,7 +80,8 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
     # within this scope. If inventory is empty, no audit-based rule fires.
     result = await db.execute(
         select(AIAsset.name, AIAsset.id, AIAsset.namespace, AIAsset.metadata_, AIAsset.asset_type,
-               AIAsset.ai_confidence, AIAsset.risk_score)
+               AIAsset.ai_confidence, AIAsset.risk_score, AIAsset.triage_state,
+               AIAsset.triage_reason, AIAsset.confidence_ceiling)
     )
     rows = result.all()
     ai_pod_names: set[str] = set()
@@ -87,13 +91,15 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
     ai_service_names: set[str] = set()
     name_to_id: dict[tuple[str, str | None], str] = {}
     name_to_confidence: dict[tuple[str, str | None], float] = {}
+    name_to_triage: dict[tuple[str, str | None], tuple[str | None, str | None]] = {}
     ns_max_confidence: dict[str, float] = {}
     for r in rows:
         asset_key = (r.name, r.namespace)
         name_to_id[asset_key] = r.id
         confidence = _asset_confidence(r)
         name_to_confidence[asset_key] = confidence
-        if r.namespace:
+        name_to_triage[asset_key] = (r.triage_state, r.triage_reason)
+        if r.namespace and r.triage_state != "dismissed":
             ns_max_confidence[r.namespace] = max(ns_max_confidence.get(r.namespace, 0.0), confidence)
         at = r.asset_type.value if hasattr(r.asset_type, "value") else str(r.asset_type)
         # Pod-level assets (agents, mcp servers, model servers)
@@ -167,6 +173,7 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
         obj_name = obj.get("name", "")
         obj_ns = obj.get("namespace")
         asset_id = name_to_id.get((obj_name, obj_ns))
+        triage_state, triage_reason = name_to_triage.get((obj_name, obj_ns), (None, None))
 
         suppressed = False
         suppression_reason = None
@@ -182,6 +189,15 @@ async def process_audit_events(events: list[dict], db: AsyncSession, scan_run_id
                 **threat_dict.get("raw_evidence", {}),
                 "asset_confidence": asset_confidence,
                 "min_asset_confidence": min_confidence,
+                "suppression_reason": suppression_reason,
+            }
+            threat_dict["suppressed"] = True
+            threat_dict["suppression_reason"] = suppression_reason
+        if triage_state == "dismissed":
+            suppressed = True
+            suppression_reason = f"asset dismissed by analyst: {triage_reason or 'no reason recorded'}"
+            threat_dict["raw_evidence"] = {
+                **threat_dict.get("raw_evidence", {}),
                 "suppression_reason": suppression_reason,
             }
             threat_dict["suppressed"] = True

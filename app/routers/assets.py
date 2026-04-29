@@ -6,9 +6,21 @@ from app.models.asset import AIAsset, AssetType
 from app.models.asset_signal import AIAssetSignal
 from app.schemas.asset import AssetOut
 from app.auth.dependencies import get_current_user
+from app.services.asset_triage import apply_asset_triage
 from typing import Optional
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
+
+
+class AssetTriagePatch(BaseModel):
+    action: str
+    reason: str = Field(min_length=3)
+    confidence_ceiling: float | None = Field(default=None, ge=0, le=10)
+
+
+def _actor(user: dict) -> str:
+    return user.get("email") or user.get("sub") or "unknown"
 
 
 @router.get("", response_model=dict)
@@ -89,3 +101,28 @@ async def delete_asset(asset_id: str, db: AsyncSession = Depends(get_db), _user:
         raise HTTPException(status_code=404, detail="Asset not found")
     await db.delete(asset)
     await db.commit()
+
+
+@router.patch("/{asset_id}/triage", response_model=AssetOut)
+async def triage_asset(
+    asset_id: str,
+    patch: AssetTriagePatch,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    result = await db.execute(select(AIAsset).where(AIAsset.id == asset_id))
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    try:
+        updated = await apply_asset_triage(
+            db,
+            asset,
+            patch.action,
+            patch.reason,
+            _actor(user),
+            patch.confidence_ceiling,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return AssetOut.model_validate(updated)

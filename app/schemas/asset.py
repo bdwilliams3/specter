@@ -13,6 +13,11 @@ class AssetBase(BaseModel):
     endpoint_url: Optional[str] = None
     metadata_: dict = Field(default_factory=dict)
     ai_confidence: float = 0.0
+    triage_state: Optional[str] = None
+    triage_reason: Optional[str] = None
+    confidence_ceiling: Optional[float] = None
+    triage_updated_by: Optional[str] = None
+    triage_updated_at: Optional[datetime] = None
     risk_score: int = 0
 
 

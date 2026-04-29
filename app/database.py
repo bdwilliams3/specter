@@ -46,6 +46,11 @@ _NEW_THREAT_COLUMNS = [
 
 _NEW_ASSET_COLUMNS = [
     ("ai_confidence", "FLOAT DEFAULT 0.0"),
+    ("triage_state", "VARCHAR"),
+    ("triage_reason", "VARCHAR"),
+    ("confidence_ceiling", "FLOAT"),
+    ("triage_updated_by", "VARCHAR"),
+    ("triage_updated_at", "DATETIME"),
 ]
 
 
