@@ -5,6 +5,26 @@ metadata:
   name: specter-ai-signals
 spec:
   kprobes:
+    # DNS egress observation, adapted from Tetragon's upstream ip_output DNS
+    # example. This hook is stable in KIND and gives pod/process attribution
+    # for UDP/53 packets without relying on syscall symbol names.
+    - call: "ip_output"
+      syscall: false
+      args:
+        - index: 2
+          type: "skb"
+      selectors:
+        - matchArgs:
+            - index: 2
+              operator: "Protocol"
+              values:
+                - "IPPROTO_UDP"
+            - index: 2
+              operator: "DPort"
+              values:
+                - "53"
+          matchActions:
+            - action: Post
     # Capture outbound stream payloads on the stable kernel TCP helper.
     # Avoid syscall entry probes here: syscall/helper names vary across kernels
     # and a single invalid hook prevents the entire TracingPolicy from loading.
