@@ -5,40 +5,18 @@ metadata:
   name: specter-ai-signals
 spec:
   kprobes:
-    - call: "tcp_connect"
-      syscall: false
-      args:
-        - index: 0
-          type: "sock"
-      selectors:
-        - matchActions:
-            - action: Post
-    - call: "__sys_sendto"
-      syscall: true
-      args:
-        - index: 0
-          type: "fd"
-        - index: 1
-          type: "char_buf"
-          sizeArgIndex: 2
-        - index: 2
-          type: "size_t"
-      selectors:
-        - matchArgs:
-            - index: 2
-              operator: GreaterThan
-              values:
-                - "12"
-          matchActions:
-            - action: Post
+    # Capture outbound stream payloads on the stable kernel TCP helper.
+    # Avoid syscall entry probes here: syscall/helper names vary across kernels
+    # and a single invalid hook prevents the entire TracingPolicy from loading.
     - call: "tcp_sendmsg"
       syscall: false
       args:
         - index: 0
           type: "sock"
         - index: 1
-          type: "char_iovec"
+          type: "iov_iter"
           sizeArgIndex: 2
+          maxData: true
         - index: 2
           type: "size_t"
       selectors:
