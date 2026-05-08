@@ -25,26 +25,11 @@ spec:
                 - "53"
           matchActions:
             - action: Post
-    # Capture outbound stream payloads on the stable kernel TCP helper.
-    # Avoid syscall entry probes here: syscall/helper names vary across kernels
-    # and a single invalid hook prevents the entire TracingPolicy from loading.
-    - call: "tcp_sendmsg"
-      syscall: false
-      args:
-        - index: 0
-          type: "sock"
-        - index: 1
-          type: "iov_iter"
-          sizeArgIndex: 2
-          maxData: true
-        - index: 2
-          type: "size_t"
-      selectors:
-        - matchArgs:
-            - index: 2
-              operator: GreaterThan
-              values:
-                - "32"
-          matchActions:
-            - action: Post
+    # tcp_sendmsg payload-capture hook removed under SCRUM-55. The hook fired
+    # on every TCP send in every container with maxData: true, burning ~270%
+    # CPU on the KIND control-plane container, and on this Docker Desktop
+    # kernel the iov_iter walk returns empty payload bytes — so SNI extraction
+    # produced no usable signal anyway. Reintroduce SNI capture via
+    # security_socket_sendmsg (LSM, stable signature) under the SCRUM-54
+    # plan-of-action Step 2, with maxData <= 512, dport=443, workload-only ns.
 {{- end }}
