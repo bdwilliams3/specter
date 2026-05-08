@@ -22,6 +22,7 @@ Primary development focus is Kubernetes policy, asset inventory, and detector lo
 - When a Jira item is moved to `Review`, merge the branch to `main` so the user can validate the merged deployment and UI.
 - Spin up or update the deployment after merging to `main` when UI or runtime validation is part of review.
 - Never move Jira tickets to `DONE`; the user reviews, accepts, and manually closes the work.
+- Include directions for user validation in the comments so they can be closed out.
 - `In Progress` means the work is committed and still being actively developed.
 - `Review` means the work has been merged and is ready for user validation.
 - `Done` means the user has accepted the review and manually closed the ticket.
@@ -37,6 +38,9 @@ Primary development focus is Kubernetes policy, asset inventory, and detector lo
 - Run focused tests for changed detector behavior.
 - Add or update tests when detector rules, scoring, or evidence schema changes.
 - Include sample Kubernetes manifests or events in tests when practical.
+- After rolling out deployment changes, test that the app at `http://localhost:9000/` remains up before handing work back.
+- When moving Jira work to `Review`, merge the implementation to `main` first and include user validation steps in the Jira comment.
+- If a full test suite is not practical, provide concrete validation evidence instead: health endpoint output, relevant API responses, persisted database rows, Kubernetes rollout/policy status, logs, screenshots, or a short reproducible probe command.
 
 ## Boundaries
 - Do not rewrite unrelated frontend, Helm, auth, or API code unless needed for the scoped work.
