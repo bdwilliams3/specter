@@ -37,6 +37,7 @@ Primary development focus is Kubernetes policy, asset inventory, and detector lo
 - Run focused tests for changed detector behavior.
 - Add or update tests when detector rules, scoring, or evidence schema changes.
 - Include sample Kubernetes manifests or events in tests when practical.
+- After rolling out deployment changes, test that the app at `http://localhost:9000/` remains up before handing work back.
 
 ## Boundaries
 - Do not rewrite unrelated frontend, Helm, auth, or API code unless needed for the scoped work.
